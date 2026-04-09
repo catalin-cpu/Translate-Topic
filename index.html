@@ -57,17 +57,34 @@
             border-bottom: 2px solid #14b8a6;
             color: #14b8a6;
         }
-        .translate-btn {
+        .translate-btn-group {
+            display: flex;
+            align-items: center;
             background-color: #f9fafb;
             border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .translate-action-btn {
+            background-color: #f9fafb;
             color: #374151;
             font-size: 12px;
             padding: 4px 12px;
-            border-radius: 4px;
             transition: all 0.2s;
+            border-right: 1px solid #e5e7eb;
         }
-        .translate-btn:hover {
+        .translate-action-btn:hover:not(:disabled) {
             background-color: #f3f4f6;
+        }
+        .translate-select {
+            background-color: #f9fafb;
+            color: #374151;
+            font-size: 12px;
+            padding: 4px 8px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
         }
         .error-border {
             border-color: #f87171 !important;
@@ -86,7 +103,7 @@
         }
     </style>
 </head>
-<body class="flex overflow-hidden" onclick="closeDropdowns(event)">
+<body class="flex overflow-hidden">
 
     <!-- Sidebar -->
     <aside class="sidebar flex flex-col shrink-0">
@@ -177,17 +194,6 @@
             <button class="bg-teal-500 text-white px-4 py-2 rounded mb-6 flex items-center gap-2">
                 <i class="fas fa-plus"></i> Add Category
             </button>
-
-            <!-- Mock Content Structure -->
-            <div class="space-y-4">
-                <div class="bg-teal-600 text-white p-3 rounded flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-grip-vertical text-teal-300"></i>
-                        <i class="fas fa-hand-paper"></i>
-                        <span class="font-medium">Welcome {{guest_first_name}}</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- MODAL OVERLAY -->
@@ -211,11 +217,19 @@
                 <!-- Modal Body -->
                 <div class="p-6 overflow-y-auto">
                     
-                    <!-- Translate Button Bar (Only visible in FR) -->
-                    <div id="translate-bar" class="mb-4 hidden flex justify-start">
-                        <button onclick="handleTranslate()" id="btn-translate" class="translate-btn flex items-center gap-2">
-                            <i class="fas fa-language"></i> Translate from English
-                        </button>
+                    <!-- Translate Control Bar (Visible on all tabs) -->
+                    <div id="translate-bar" class="mb-4 flex justify-start">
+                        <div class="translate-btn-group">
+                            <button onclick="handleTranslate()" id="btn-translate" class="translate-action-btn flex items-center gap-2">
+                                <i class="fas fa-language"></i> Translate from
+                            </button>
+                            <div class="relative flex items-center pr-2 bg-gray-50">
+                                <select id="source-lang-select" class="translate-select pr-4">
+                                    <!-- Options populated by JS -->
+                                </select>
+                                <i class="fas fa-chevron-down absolute right-2 text-[8px] pointer-events-none text-gray-400"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-6">
@@ -229,7 +243,6 @@
 
                     <div>
                         <label class="text-sm font-bold text-gray-700 block mb-2">Content</label>
-                        <!-- Rich Text Editor Toolbar -->
                         <div class="border border-gray-300 rounded-t-lg bg-white p-2 flex flex-wrap gap-1 text-editor-toolbar border-b-0">
                             <button><i class="fas fa-undo"></i></button>
                             <button><i class="fas fa-redo"></i></button>
@@ -254,24 +267,15 @@
                             <span class="text-xs px-2 py-1 text-blue-600 cursor-pointer">Custom Element</span>
                         </div>
                         
-                        <!-- Editor Content -->
                         <div id="editor-container" class="border border-gray-300 p-4 min-h-[250px] text-gray-700 text-sm leading-relaxed rounded-b-lg overflow-y-auto transition-opacity">
                             <div id="editor-content">
-                                <p class="mb-4"><strong>Welcome 👋 Here’s everything you need to know about your stay with us.</strong></p>
-                                <p class="mb-4 text-gray-600">Your time is precious, which is why we’ve created this digital guidebook. Think of it as having us "virtually" by your side, answering everything you need to know about staying with us. Things like:</p>
-                                <ul class="list-disc pl-5 space-y-1 text-gray-600">
-                                    <li>how to find us</li>
-                                    <li>the WiFi code</li>
-                                    <li>check-in instructions</li>
-                                    <li>check-out instructions</li>
-                                    <li>wonderful local places</li>
-                                </ul>
+                                <!-- Content injected by JS -->
                             </div>
                         </div>
                         <div class="flex justify-between items-center mt-2 text-[10px] text-gray-400">
                             <div>p > strong</div>
                             <div class="flex items-center gap-2">
-                                <span id="word-count">236 words</span>
+                                <span id="word-count">0 words</span>
                                 <span class="font-bold italic text-gray-600">tiny</span>
                             </div>
                         </div>
@@ -294,15 +298,18 @@
             </div>
         </div>
 
-        <!-- Chat Bubble -->
         <div class="absolute bottom-6 right-6 w-14 h-14 bg-yellow-600 rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer">
             <i class="fas fa-comment-alt text-2xl"></i>
         </div>
     </main>
 
     <script>
-        // State management
         let currentLang = 'en';
+        const languages = [
+            { id: 'en', label: 'English' },
+            { id: 'fr', label: 'French' }
+        ];
+
         const data = {
             en: {
                 title: "Welcome",
@@ -326,17 +333,29 @@
             }
         };
 
+        function populateSourceSelect() {
+            const select = document.getElementById('source-lang-select');
+            select.innerHTML = '';
+            
+            languages.forEach(lang => {
+                if (lang.id !== currentLang) {
+                    const opt = document.createElement('option');
+                    opt.value = lang.id;
+                    opt.innerText = lang.label;
+                    select.appendChild(opt);
+                }
+            });
+        }
+
         function switchLanguage(lang) {
-            // Save current state before switching (if needed)
-            // But here we'll just switch UI
             currentLang = lang;
             
-            // UI Tab Updates
+            // Tab visual state
             document.getElementById('tab-en').className = (lang === 'en') ? 'pb-2 tab-active cursor-pointer' : 'pb-2 text-gray-400 cursor-pointer';
             document.getElementById('tab-fr').className = (lang === 'fr') ? 'pb-2 tab-active cursor-pointer' : 'pb-2 text-gray-400 cursor-pointer';
             
-            // Show/Hide Translation Button
-            document.getElementById('translate-bar').classList.toggle('hidden', lang !== 'fr');
+            // Refresh translation source dropdown
+            populateSourceSelect();
 
             // Populate Fields
             const titleInput = document.getElementById('topic-title');
@@ -347,8 +366,8 @@
             editorContent.innerHTML = data[lang].content || "";
             wordCount.innerText = data[lang].words;
 
-            // Handle Error States (Empty state for FR as per screenshot)
-            if (lang === 'fr' && !data.fr.title) {
+            // Error styling
+            if (!data[lang].title && data[lang].title === "") {
                 titleInput.classList.add('error-border');
                 document.getElementById('title-error').classList.remove('hidden');
             } else {
@@ -359,44 +378,45 @@
 
         async function handleTranslate() {
             const btn = document.getElementById('btn-translate');
-            const titleInput = document.getElementById('topic-title');
+            const select = document.getElementById('source-lang-select');
+            const sourceLang = select.value;
             const editor = document.getElementById('editor-container');
             
+            if (!data[sourceLang].title && !data[sourceLang].content) {
+                return; // Nothing to translate from
+            }
+
             // Loading state
             btn.innerHTML = '<i class="fas fa-spinner loading-spinner"></i> Translating...';
             btn.disabled = true;
+            select.disabled = true;
             editor.style.opacity = '0.5';
 
             // Simulate API Latency
-            await new Promise(r => setTimeout(r, 1200));
+            await new Promise(r => setTimeout(r, 1000));
 
-            // Perform "Translation"
-            data.fr.title = "Bienvenue";
-            data.fr.content = `
-                <p class="mb-4"><strong>Bienvenue 👋 Voici tout ce que vous devez savoir sur votre séjour chez nous.</strong></p>
-                <p class="mb-4 text-gray-600">Votre temps est précieux, c'est pourquoi nous avons créé ce livret d'accueil numérique. Considérez-le comme si nous étions "virtuellement" à vos côtés, répondant à tout ce que vous devez savoir sur votre séjour chez nous. Des choses comme :</p>
-                <ul class="list-disc pl-5 space-y-1 text-gray-600">
-                    <li>comment nous trouver</li>
-                    <li>le code Wi-Fi</li>
-                    <li>instructions d'arrivée</li>
-                    <li>instructions de départ</li>
-                    <li>des endroits locaux merveilleux</li>
-                </ul>
-            `;
-            data.fr.words = "252 words";
+            // Simple mock translation logic
+            if (currentLang === 'fr' && sourceLang === 'en') {
+                data.fr.title = "Bienvenue";
+                data.fr.content = `<p class="mb-4"><strong>Bienvenue 👋 Voici tout ce que vous devez savoir...</strong></p><p class="mb-4 text-gray-600">Votre temps est précieux...</p>`;
+                data.fr.words = "252 words";
+            } else if (currentLang === 'en' && sourceLang === 'fr') {
+                data.en.title = "Welcome (FR Trans)";
+                data.en.content = `<p class="mb-4"><strong>Welcome 👋 (Translated from French content)</strong></p>`;
+                data.en.words = "150 words";
+            }
 
             // Reset UI
-            btn.innerHTML = '<i class="fas fa-language"></i> Translate from English';
+            btn.innerHTML = '<i class="fas fa-language"></i> Translate from';
             btn.disabled = false;
+            select.disabled = false;
             editor.style.opacity = '1';
             
-            // Refresh fields
-            switchLanguage('fr');
+            switchLanguage(currentLang);
         }
 
-        function closeDropdowns(e) {
-            // Placeholder for interactivity
-        }
+        // Init
+        window.onload = () => switchLanguage('en');
     </script>
 </body>
 </html>
